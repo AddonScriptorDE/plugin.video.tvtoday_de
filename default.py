@@ -47,42 +47,15 @@ def index():
 def listVideosAll():
     content = getUrl(baseUrl+"/mediathek")
     content = content[content.find('<div id="topTeaser"')+1:]
-    spl = content.split('<div id="topTeaser')
+    spl = content.split('<div class="carousel-feature">')
     entries = []
     for i in range(1, len(spl), 1):
         entry = spl[i]
         if "sat1-programm" not in entry:
-            match1 = re.compile('<h2.+?>(.+?)</h2>.+?<div class="info">(.+?)</div>', re.DOTALL).findall(entry)
+            match1 = re.compile('class="heading">(.+?)<', re.DOTALL).findall(entry)
             match2 = re.compile('title="(.+?)"', re.DOTALL).findall(entry)
             if match1:
-                title = cleanTitle(match1[0][0])+" - "+cleanTitle(match1[0][1])
-            elif match2:
-                title = cleanTitle(match2[0])
-            title = title.replace("<wbr/>","").replace("<br />"," -")
-            match = re.compile('href="(.+?)"', re.DOTALL).findall(entry)
-            url = match[0]
-            match = re.compile("background:url\\('(.+?)'\\)", re.DOTALL).findall(entry)
-            thumb = match[0]
-            thumb = thumb[:thumb.find(',')]+".jpg"
-            addLink(title, url, 'playVideo', thumb)
-    xbmcplugin.endOfDirectory(pluginhandle)
-    if forceViewMode:
-        xbmc.executebuiltin('Container.SetViewMode('+viewMode+')')
-
-
-def listVideos(type):
-    content = getUrl(baseUrl+"/mediathek")
-    content = content[content.find('id="'+type+'"'):]
-    content = content[:content.find('</ul>')]
-    spl = content.split('<li>')
-    entries = []
-    for i in range(1, len(spl), 1):
-        entry = spl[i]
-        if "sat1-programm" not in entry:
-            match1 = re.compile('<span><a.+?>(.+?)</a></span>(.+?)</div>', re.DOTALL).findall(entry)
-            match2 = re.compile('title="(.+?)"', re.DOTALL).findall(entry)
-            if match1:
-                title = cleanTitle(match1[0][0])+" - "+cleanTitle(match1[0][1])
+                title = cleanTitle(match1[0])
             elif match2:
                 title = cleanTitle(match2[0])
             title = title.replace("<wbr/>","").replace("<br />"," -")
@@ -97,10 +70,37 @@ def listVideos(type):
         xbmc.executebuiltin('Container.SetViewMode('+viewMode+')')
 
 
+def listVideos(type):
+    content = getUrl(baseUrl+"/mediathek")
+    content = content[content.find('id="'+type+'"'):]
+    content = content[:content.find('</ul>')]
+    spl = content.split('<div class="el">')
+    entries = []
+    for i in range(1, len(spl), 1):
+        entry = spl[i]
+        if "sat1-programm" not in entry:
+            match = re.compile('<strong>(.+?)</strong>.+?<span>(.+?)</span>', re.DOTALL).findall(entry)
+            title = cleanTitle(match[0][0].strip())+" - "+cleanTitle(match[0][1].strip())
+            title = title.replace("<wbr/>","").replace("<br />"," -")
+            match = re.compile('href="(.+?)"', re.DOTALL).findall(entry)
+            url = match[0]
+            match = re.compile('src="(.+?)"', re.DOTALL).findall(entry)
+            thumb = match[0]
+            thumb = thumb[:thumb.find(',')]+".jpg"
+            addLink(title, url, 'playVideo', thumb)
+    xbmcplugin.endOfDirectory(pluginhandle)
+    if forceViewMode:
+        xbmc.executebuiltin('Container.SetViewMode('+viewMode+')')
+
+
 def playVideo(urlMain):
     content = opener.open(urlMain).read()
-    match = re.compile("openwin\\('(.+?)'", re.DOTALL).findall(content)
-    url = match[0]
+    match1 = re.compile("openwin\\('(.+?)'", re.DOTALL).findall(content)
+    match2 = re.compile('class="mediathek-stats-opened">.+?<a href="(.+?)"', re.DOTALL).findall(content)
+    if match1:
+        url = match1[0]
+    elif match2:
+        url = match2[0]
     finalUrl = ""
     if url.startswith("http://www.zdf.de/ZDFmediathek/"):
         match = re.compile("/beitrag/video/(.+?)/", re.DOTALL).findall(url)
